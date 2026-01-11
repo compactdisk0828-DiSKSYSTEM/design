@@ -1,0 +1,432 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Menu, X, ArrowRight, Instagram, Mail, Send, Loader2, ArrowLeft, ChevronDown, ImageOff } from 'lucide-react';
+
+// --- Gemini API Setup ---
+const apiKey = ""; 
+
+const callGemini = async (prompt, systemInstruction = "") => {
+  try {
+    let delay = 1000;
+    for (let i = 0; i < 5; i++) {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.candidates?.[0]?.content?.parts?.[0]?.text;
+      }
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+    throw new Error("API call failed after retries");
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    return null;
+  }
+};
+
+// --- Assets / Mock Data ---
+// 【重要】image プロパティに、外部にアップロードした画像のURLを入力してください
+const portfolioItems = [
+  { 
+    id: 1, 
+    title: "SxKxBEACH", 
+    category: "Event Production", 
+    filterTag: "Event", 
+    year: "2008~", 
+    image: "https://your-hosting-service.com/path/to/sxkxbeach.jpg", // 例: 外部URLを指定
+    fallback: "https://images.unsplash.com/photo-1545128485-c400e7702796?auto=format&fit=crop&q=80&w=800", 
+    desc: "2000人規模のダンスイベントにおける演出・制作・キャスティング。" 
+  },
+  { 
+    id: 2, 
+    title: "DANCER'S FLYER DESIGN", 
+    category: "Dance Instructor Marketing", 
+    filterTag: "Design", 
+    year: "2025", 
+    image: "https://your-hosting-service.com/path/to/flyerdesign.jpg", 
+    fallback: "https://images.unsplash.com/photo-1586717791821-3f44a563dc4c?auto=format&fit=crop&q=80&w=800", 
+    desc: "ストリートダンサーおよびダンススクールの紙媒体プロモーションデザイン。" 
+  },
+  { 
+    id: 3, 
+    title: "MU-CHO DANCE SCHOOL", 
+    category: "School Management", 
+    filterTag: "School", 
+    year: "2023", 
+    image: "https://your-hosting-service.com/path/to/muchoweb.jpg", 
+    fallback: "https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?auto=format&fit=crop&q=80&w=800", 
+    desc: "ダンススタジオサイトのリブランディングおよびWebシステム構築。" 
+  },
+  { 
+    id: 4, 
+    title: "SNS PROMOTIONAL VISUAL DESIGN", 
+    category: "Artist Promotion", 
+    filterTag: "Design", 
+    year: "2025", 
+    image: "https://your-hosting-service.com/path/to/sns.jpg", 
+    fallback: "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?auto=format&fit=crop&q=80&w=800", 
+    desc: "ダンサー・インフルエンサー・スクール等のSNSヴィジュアルデザイン" 
+  },
+  { id: 5, title: "URBAN STAGE 2024", category: "Event Production", filterTag: "Event", year: "2024", image: "https://your-hosting-service.com/path/to/works5.jpg", fallback: "https://images.unsplash.com/photo-1508851413542-d85941ea3b01?auto=format&fit=crop&q=80&w=800", desc: "都市型ストリートダンスフェスティバルの舞台監督・進行管理。" },
+  { id: 6, title: "MOVEMENT LOGO", category: "CI/BI Design", filterTag: "Design", year: "2024", image: "https://your-hosting-service.com/path/to/works6.jpg", fallback: "https://images.unsplash.com/photo-1626785774573-4b799315345d?auto=format&fit=crop&q=80&w=800", desc: "アパレルブランドのロゴデザインおよびトータルアートディレクション。" }
+];
+
+// --- Sub Components ---
+
+const Header = ({ setPage }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const navItems = [
+    { label: 'PHILOSOPHY', id: 'philosophy' },
+    { label: 'PORTFOLIO', id: 'portfolio' },
+    { label: 'LAB', id: 'lab' },
+    { label: 'CONTACT', id: 'contact' }
+  ];
+
+  const handleNavClick = (id) => {
+    setIsOpen(false);
+    setPage('home');
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
+  return (
+    <>
+      <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 py-6 mix-blend-difference text-white">
+        <h1 
+          className="text-2xl font-black tracking-tighter cursor-pointer" 
+          onClick={() => { setPage('home'); window.scrollTo(0,0); }}
+        >
+          DiSK SYSTEM
+        </h1>
+        <button onClick={() => setIsOpen(true)} className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+          <span className="text-xs font-bold tracking-widest hidden sm:block">MENU</span>
+          <Menu size={32} />
+        </button>
+      </header>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ y: "-100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "-100%" }}
+            transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
+            className="fixed inset-0 bg-[#5ee1d5] z-[60] flex flex-col justify-center items-center text-black"
+          >
+            <button onClick={() => setIsOpen(false)} className="absolute top-6 right-6 p-2 hover:scale-110 transition-transform">
+              <X size={40} />
+            </button>
+            <nav className="flex flex-col gap-4 text-center">
+              {navItems.map((item, i) => (
+                <motion.button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + i * 0.1 }}
+                  className="text-5xl sm:text-8xl font-black tracking-tighter hover:text-white transition-colors cursor-pointer text-left uppercase italic"
+                >
+                  {item.label}
+                </motion.button>
+              ))}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
+
+const PortfolioCard = ({ item }) => {
+  const [imgSrc, setImgSrc] = useState(item.image);
+  const [isFallback, setIsFallback] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setImgSrc(item.image);
+    setIsFallback(false);
+    setIsError(false);
+    setIsLoading(true);
+  }, [item.image]);
+
+  const handleError = () => {
+    if (!isFallback) {
+      setImgSrc(item.fallback);
+      setIsFallback(true);
+    } else {
+      setIsError(true);
+      setIsLoading(false);
+    }
+  };
+
+  const handleLoad = () => {
+    setIsLoading(false);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="group cursor-pointer">
+      <div className="overflow-hidden mb-6 relative aspect-[4/3] bg-zinc-900 rounded-lg flex items-center justify-center">
+        <div className="absolute inset-0 bg-[#5ee1d5] opacity-0 group-hover:opacity-20 transition-opacity z-10 mix-blend-multiply"></div>
+        
+        {isLoading && !isError && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 bg-zinc-900">
+            <Loader2 className="animate-spin text-[#5ee1d5]" size={32} />
+          </div>
+        )}
+
+        {isError ? (
+          <div className="flex flex-col items-center text-zinc-600">
+            <ImageOff size={48} strokeWidth={1} />
+            <span className="text-[10px] mt-2 font-mono uppercase tracking-widest text-center px-4">Image path invalid.<br/>Please use external URL.</span>
+          </div>
+        ) : (
+          <motion.img 
+            src={imgSrc} 
+            alt={item.title} 
+            onLoad={handleLoad}
+            onError={handleError} 
+            className={`w-full h-full object-cover transition-all duration-700 ${isLoading ? 'opacity-0' : 'opacity-100 group-hover:scale-105'}`} 
+          />
+        )}
+      </div>
+      <div className="flex justify-between items-start border-b border-black pb-2">
+        <div>
+          <h3 className="text-2xl font-black tracking-tighter uppercase italic">{item.title}</h3>
+          <p className="text-xs font-bold text-gray-500 mt-1 uppercase tracking-widest">{item.category}</p>
+        </div>
+        <span className="font-mono text-sm">{item.year}</span>
+      </div>
+      <p className="mt-4 text-gray-700 text-sm leading-relaxed">{item.desc}</p>
+    </motion.div>
+  );
+};
+
+// --- Main Sections ---
+
+const Hero = () => (
+  <section className="relative h-screen w-full bg-black text-white flex flex-col justify-end pb-20 px-6 overflow-hidden">
+    <div className="absolute inset-0 opacity-20 pointer-events-none">
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gray-800 rounded-full blur-[100px] animate-pulse"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#5ee1d5] rounded-full blur-[120px] opacity-30"></div>
+    </div>
+    <div className="relative z-10 max-w-screen-2xl mx-auto w-full">
+      <motion.div initial={{ opacity: 0, y: 80 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }}>
+        <h2 className="text-[#5ee1d5] font-mono text-xs sm:text-sm mb-4 tracking-[0.3em] uppercase">// STRATEGY & CREATIVE FOR THE CULTURE</h2>
+        <h1 className="text-7xl sm:text-[12vw] font-black leading-[0.8] tracking-tighter mb-8 italic">CORE<br />STRENGTH.</h1>
+        <p className="max-w-xl text-gray-400 text-sm sm:text-lg leading-relaxed font-medium">
+          表現者の情熱をシステム化し、持続可能なクリエイティブ・エコシステムを構築します。
+        </p>
+      </motion.div>
+    </div>
+  </section>
+);
+
+const CreativeLab = () => {
+    const [prompt, setPrompt] = useState("");
+    const [result, setResult] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState("copy");
+    
+    const handleGenerate = async () => {
+      if (!prompt) return;
+      setLoading(true);
+      setResult("");
+      const systemPrompt = activeTab === "copy" ? "キャッチコピーを3つ提案。" : "演出プランを1つ提案。";
+      const res = await callGemini(prompt, systemPrompt);
+      setResult(res || "エラーが発生しました。");
+      setLoading(false);
+    };
+
+    return (
+      <section id="lab" className="bg-zinc-900 text-white py-32 px-6">
+        <div className="max-w-4xl mx-auto border border-zinc-700 bg-black p-8 sm:p-12 rounded-[2rem] relative overflow-hidden group">
+          <div className="absolute inset-0 z-0">
+             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+          </div>
+          <div className="relative z-10">
+            <div className="mb-10 text-center">
+              <p className="text-[#5ee1d5] font-mono text-xs tracking-widest mb-2 uppercase">// AI EXPERIMENT</p>
+              <h2 className="text-4xl font-black tracking-tighter italic uppercase">LABORATORY</h2>
+            </div>
+            <div className="flex gap-2 mb-8 justify-center">
+              <button onClick={() => setActiveTab("copy")} className={`px-8 py-3 rounded-full font-bold text-xs tracking-widest transition-all ${activeTab === 'copy' ? 'bg-[#5ee1d5] text-black scale-105' : 'border border-zinc-700 text-zinc-500'}`}>COPYWRITING</button>
+              <button onClick={() => setActiveTab("visual")} className={`px-8 py-3 rounded-full font-bold text-xs tracking-widest transition-all ${activeTab === 'visual' ? 'bg-[#5ee1d5] text-black scale-105' : 'border border-zinc-700 text-zinc-500'}`}>DIRECTION</button>
+            </div>
+            <div className="relative">
+              <textarea 
+                value={prompt} 
+                onChange={(e) => setPrompt(e.target.value)} 
+                placeholder="キーワードやコンセプトを入力..." 
+                className="w-full bg-zinc-800/80 backdrop-blur-sm border-none rounded-2xl p-6 text-lg outline-none min-h-[140px] focus:ring-1 focus:ring-[#5ee1d5] transition-all" 
+              />
+              <button 
+                onClick={handleGenerate} 
+                disabled={loading || !prompt} 
+                className="absolute bottom-4 right-4 bg-[#5ee1d5] text-black p-4 rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <Send size={24} />}
+              </button>
+            </div>
+            {result && <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-8 p-6 bg-zinc-800/80 backdrop-blur-sm border-l-4 border-[#5ee1d5] rounded-r-xl whitespace-pre-wrap font-medium">{result}</motion.div>}
+          </div>
+        </div>
+      </section>
+    );
+};
+
+const Contact = () => (
+  <section id="contact" className="bg-[#5ee1d5] text-black py-32 px-6">
+    <div className="max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-16">
+      <div className="lg:w-1/2">
+        <p className="font-mono text-sm tracking-widest mb-4 uppercase text-black/70">03 / CONTACT</p>
+        <h2 className="text-6xl sm:text-8xl font-black tracking-tighter leading-none mb-8 italic">LET'S<br />SYSTEMIZE.</h2>
+        <div className="flex gap-4">
+           <a href="#" className="p-4 border-2 border-black rounded-full hover:bg-black hover:text-[#5ee1d5] transition-all"><Instagram /></a>
+           <a href="mailto:daisuke550828@icloud.com" className="p-4 border-2 border-black rounded-full hover:bg-black hover:text-[#5ee1d5] transition-all"><Mail /></a>
+        </div>
+      </div>
+      <form action="https://formspree.io/f/daisuke550828@icloud.com" method="POST" className="lg:w-1/2 flex flex-col gap-8">
+        <input name="name" type="text" placeholder="NAME / 会社名・お名前" required className="w-full bg-transparent border-b-2 border-black py-4 text-xl font-bold placeholder-black/40 focus:outline-none" />
+        <input name="email" type="email" placeholder="EMAIL / メールアドレス" required className="w-full bg-transparent border-b-2 border-black py-4 text-xl font-bold placeholder-black/40 focus:outline-none" />
+        <div className="relative w-full">
+          <label className="block text-xs font-black tracking-widest mb-1 opacity-60 italic uppercase">INQUIRY / 問い合わせ内容</label>
+          <select 
+            name="category"
+            className="w-full bg-transparent border-b-2 border-black py-4 text-xl font-bold focus:outline-none appearance-none cursor-pointer pr-10"
+          >
+            <option value="Visual Design">ビジュアルデザインについて</option>
+            <option value="Event Production">イベント制作について</option>
+            <option value="Consulting">運営コンサルティング</option>
+            <option value="Other">その他</option>
+          </select>
+          <div className="absolute right-0 bottom-4 pointer-events-none">
+            <ChevronDown size={28} />
+          </div>
+        </div>
+        <textarea name="message" rows="4" placeholder="MESSAGE / お問い合わせ詳細" required className="w-full bg-transparent border-b-2 border-black py-4 text-xl font-bold placeholder-black/40 focus:outline-none resize-none" />
+        <button type="submit" className="self-start mt-4 bg-black text-[#5ee1d5] px-14 py-6 text-xl font-black tracking-widest hover:scale-[1.02] active:scale-95 transition-all">
+          SEND MESSAGE
+        </button>
+      </form>
+    </div>
+  </section>
+);
+
+const WorksPage = ({ setPage }) => {
+  const [filter, setFilter] = useState("All");
+  const tags = ["All", "Event", "Design", "School"];
+  const filteredItems = filter === "All" ? portfolioItems : portfolioItems.filter(i => i.filterTag === filter);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white min-h-screen pt-32 pb-20 px-6">
+      <div className="max-w-screen-2xl mx-auto">
+        <button onClick={() => { setPage('home'); window.scrollTo(0,0); }} className="flex items-center gap-2 font-black mb-8 hover:text-[#5ee1d5] transition-colors italic">
+          <ArrowLeft size={20} /> BACK TO HOME
+        </button>
+        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+          <h2 className="text-7xl sm:text-[10vw] font-black tracking-tighter italic leading-none uppercase">PORTFOLIO.</h2>
+          <div className="flex flex-wrap gap-2">
+            {tags.map(tag => (
+              <button 
+                key={tag} 
+                onClick={() => setFilter(tag)} 
+                className={`px-8 py-2 rounded-full text-xs font-black tracking-widest border-2 border-black transition-all ${filter === tag ? 'bg-black text-white' : 'hover:bg-[#5ee1d5]'}`}
+              >
+                {tag.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+          <AnimatePresence mode="popLayout">
+            {filteredItems.map(item => (
+              <motion.div key={item.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
+                <PortfolioCard item={item} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const App = () => {
+  const [page, setPage] = useState('home');
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [page]);
+
+  return (
+    <div className="font-sans antialiased bg-black min-h-screen selection:bg-[#5ee1d5] selection:text-black scroll-smooth">
+      <Header setPage={setPage} />
+      <AnimatePresence mode="wait">
+        {page === 'home' ? (
+          <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <Hero />
+            <section id="philosophy" className="bg-black text-white py-40 px-6">
+              <div className="max-w-screen-2xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20">
+                <div className="lg:sticky lg:top-40 h-fit">
+                  <p className="text-[#5ee1d5] font-mono mb-4 text-sm tracking-[0.3em] uppercase">01 / PHILOSOPHY</p>
+                  <h2 className="text-5xl sm:text-8xl font-black tracking-tighter leading-[0.9] italic uppercase">WE<br/>SYSTEMIZE<br/>THE ART.</h2>
+                </div>
+                <div className="text-xl sm:text-2xl leading-relaxed text-gray-400 font-medium">
+                  <p className="mb-8 text-white">DiSK SYSTEMは、身体表現の瞬発的なエネルギーと、デジタルの永続性を融合させるクリエイティブ・ギルドです。</p>
+                  <p className="mb-8">ダンス、音楽、アート。形のない熱量をシステムとして再定義し、表現者が正当に評価され、拡張される未来を実装します。</p>
+                  <div className="w-20 h-1 bg-[#5ee1d5]"></div>
+                </div>
+              </div>
+            </section>
+            <CreativeLab />
+            <section id="portfolio" className="bg-white text-black py-40 px-6 rounded-t-[4vw] -mt-10 relative z-10 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+              <div className="max-w-screen-2xl mx-auto">
+                <div className="flex justify-between items-end mb-20 border-b-4 border-black pb-10">
+                  <div>
+                    <p className="font-mono text-sm tracking-widest mb-2 uppercase opacity-60">02 / PORTFOLIO</p>
+                    <h2 className="text-6xl sm:text-9xl font-black tracking-tighter italic uppercase leading-none">WORKS.</h2>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-20">
+                  {portfolioItems.slice(0, 4).map(item => (
+                    <PortfolioCard key={item.id} item={item} />
+                  ))}
+                </div>
+                <div className="mt-24 text-center">
+                  <button onClick={() => setPage('works')} className="group bg-black text-white px-12 py-6 text-xl font-black rounded-full hover:bg-[#5ee1d5] hover:text-black transition-all flex items-center gap-6 mx-auto italic uppercase tracking-tighter">
+                    VIEW ALL WORKS <ArrowRight className="group-hover:translate-x-3 transition-transform" />
+                  </button>
+                </div>
+              </div>
+            </section>
+            <Contact />
+          </motion.div>
+        ) : (
+          <WorksPage key="works" setPage={setPage} />
+        )}
+      </AnimatePresence>
+      <footer className="bg-black text-gray-600 py-20 px-6 border-t border-zinc-900">
+        <div className="max-w-screen-2xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
+          <div className="text-center md:text-left">
+            <h2 className="text-white text-3xl font-black tracking-tighter italic mb-2">DiSK SYSTEM</h2>
+            <p className="text-xs font-mono tracking-widest uppercase">Precision & Passion.</p>
+          </div>
+          <div className="text-xs font-mono text-center">&copy; 2024 DiSK SYSTEM INC. / DEVELOPED BY CREATIVE UNIT.</div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default App;
